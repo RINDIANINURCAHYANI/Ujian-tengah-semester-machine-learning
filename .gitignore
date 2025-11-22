@@ -1,31 +1,6 @@
-# Python
+*.pkl
+*.h5
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-*.pkl
-.env
-
-# Virtual Environment
-venv/
-env/
 .venv/
-
-# Jupyter
-.ipynb_checkpoints/
-
-# VSCode
-.vscode/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Matplotlib cache
-.matplotlib/
-
-# Model files (kalau tidak ingin disimpan ke repo)
-model_logistic.pkl
-
-# Vercel
-.vercel/
+uploads/
