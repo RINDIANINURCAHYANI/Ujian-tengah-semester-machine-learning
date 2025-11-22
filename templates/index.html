@@ -1,0 +1,414 @@
+<!DOCTYPE html> 
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediksi Diabetes - Logistic Regression</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="bg-light">
+
+<button id="darkModeToggle">🌙 Mode Gelap</button>
+
+<div class="container mt-5 mb-5">
+    <div class="card medical-card p-4 p-md-5">
+        <!-- HEADER -->
+        <div class="text-center mb-4">
+            <div class="medical-header">
+                <div class="medical-icon">
+                    🩺
+                </div>
+                <div class="text-start">
+                    <h1 class="medical-title mb-1">Prediksi Penyakit Diabetes</h1>
+                    <div class="medical-subtitle">
+                        Menggunakan Algoritma <strong>Logistic Regression (Binary Classification)</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PILIH DATASET -->
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="section-title">
+                    <span class="section-badge">1</span>
+                    Pilih Data dari Dataset
+                </span>
+                <span class="small-muted">Total data: {{ dataset_options|length }} baris</span>
+            </div>
+            <select id="datasetSelect" class="form-select">
+                <option value="">-- Pilih Nomor Dataset --</option>
+                {% for i in dataset_options %}
+                    <option value="{{ i }}">Data ke-{{ i }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- PREVIEW DATASET -->
+        <div id="previewContainer" class="mt-3" style="display:none;">
+            <h6 class="fw-semibold mb-2">
+                📋 Data Terpilih
+            </h6>
+            <div class="table-responsive">
+                <table class="table table-bordered text-center table-sm align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th>Gender</th><th>Age</th><th>Hypertension</th><th>Heart Disease</th>
+                        <th>Smoking</th><th>BMI</th><th>HbA1c</th><th>Glukosa</th>
+                        <th>Label Asli</th><th>Prediksi Model</th>
+                    </tr>
+                    </thead>
+                    <tbody><tr id="previewRow"></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- FORM INPUT -->
+        <div class="mb-3">
+            <span class="section-title mb-3">
+                <span class="section-badge">2</span>
+                Masukkan Data Pasien
+            </span>
+        </div>
+
+        <form action="/predict" method="POST" id="predictForm">
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <label>Gender</label>
+                    <select class="form-select" id="gender" name="gender" required>
+                        <option value="">--Pilih--</option>
+                        <option>Male</option>
+                        <option>Female</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label>Age</label>
+                    <input type="number" step="any" class="form-control" name="age" id="age" required>
+                </div>
+
+                <div class="col-md-4">
+                    <label>Hypertension</label>
+                    <select class="form-select" name="hypertension" id="hypertension">
+                        <option value="0">Tidak</option>
+                        <option value="1">Ya</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label>Heart Disease</label>
+                    <select class="form-select" name="heart_disease" id="heart_disease">
+                        <option value="0">Tidak</option>
+                        <option value="1">Ya</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label>Smoking History</label>
+                    <select class="form-select" id="smoking_history" name="smoking_history">
+                        <option value="never">Never</option>
+                        <option value="former">Former</option>
+                        <option value="current">Current</option>
+                        <option value="ever">Ever</option>
+                        <option value="not current">Not Current</option>
+                        <option value="No Info">No Info</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label>BMI</label>
+                    <input type="number" step="any" class="form-control" id="bmi" name="bmi" required>
+                </div>
+
+                <div class="col-md-4">
+                    <label>HbA1c Level</label>
+                    <input type="number" step="any" class="form-control" id="HbA1c_level" name="HbA1c_level" required>
+                </div>
+
+                <div class="col-md-4">
+                    <label>Blood Glucose Level</label>
+                    <input type="number" step="any" class="form-control" id="blood_glucose_level" name="blood_glucose_level" required>
+                </div>
+
+            </div>
+
+            <div class="text-center mt-4">
+                <button class="btn btn-primary px-4" type="submit">Prediksi</button>
+            </div>
+        </form>
+
+        <!-- HASIL PREDIKSI -->
+        {% if prediction_text %}
+        <div class="alert alert-{{ color }} text-center mt-4 fs-5 prediction-alert">
+            <strong>{{ prediction_text }}</strong><br>
+            {{ probability_text }}
+        </div>
+        {% endif %}
+
+        <!-- GRAFIK: 1 x 3 GRID -->
+        {% if bar_chart_base64 or gauge_json or pie_json %}
+        <hr class="section-divider">
+        <h5 class="mt-2 text-center section-title justify-content-center">
+            <span class="section-badge">3</span>
+            Visualisasi Probabilitas Diabetes
+        </h5>
+        <div class="row mt-4">
+
+            {% if bar_chart_base64 %}
+            <div class="col-md-4 mb-3">
+                <div class="card chart-card">
+                    <div class="card-body">
+                        <!-- BAR CHART TIDAK DARI STATIC, TAPI BASE64 -->
+                        <img src="data:image/png;base64,{{ bar_chart_base64 }}" class="img-fluid rounded">
+                    </div>
+                    <div class="card-footer text-center small-muted">
+                        Probabilitas Diabetes (Bar Chart)
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if gauge_json %}
+            <div class="col-md-4 mb-3">
+                <div class="card chart-card">
+                    <div class="card-body">
+                        <div id="gauge"></div>
+                    </div>
+                    <div class="card-footer text-center small-muted">
+                        Risiko Diabetes (%) - Gauge
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pie_json %}
+            <div class="col-md-4 mb-3">
+                <div class="card chart-card">
+                    <div class="card-body">
+                        <div id="pie"></div>
+                    </div>
+                    <div class="card-footer text-center small-muted">
+                        Komposisi Risiko Diabetes
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+        {% endif %}
+
+        <!-- VISUALISASI DATASET (COUNT/HIST/HEATMAP) -->
+        {% if diabetes_plot or gender_plot or smoking_plot or age_plot or corr_heatmap_plot %}
+        <hr class="section-divider">
+        <h5 class="mt-2 text-center section-title justify-content-center">
+            <span class="section-badge">4</span>
+            Visualisasi Dataset Diabetes
+        </h5>
+
+        <!-- GRID 2x2: Diabetes, Gender, Smoking, Age -->
+        <div class="row mt-3">
+            {% if diabetes_plot %}
+            <div class="col-md-6 mb-4">
+                <div class="card chart-card h-100">
+                    <div class="card-body text-center">
+                        <img src="data:image/png;base64,{{ diabetes_plot }}"
+                             class="img-fluid"
+                             style="max-height:260px; width:100%; object-fit:contain;">
+                    </div>
+                    <div class="card-footer text-center small-muted">
+                        Distribusi Label Diabetes (0 = Tidak, 1 = Ya)
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if gender_plot %}
+            <div class="col-md-6 mb-4">
+                <div class="card chart-card h-100">
+                    <div class="card-body text-center">
+                        <img src="data:image/png;base64,{{ gender_plot }}"
+                             class="img-fluid"
+                             style="max-height:260px; width:100%; object-fit:contain;">
+                    </div>
+                    <div class="card-footer text-center small-muted">
+                        Gender Distribution
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="row">
+            {% if smoking_plot %}
+            <div class="col-md-6 mb-4">
+                <div class="card chart-card h-100">
+                    <div class="card-body text-center">
+                        <img src="data:image/png;base64,{{ smoking_plot }}"
+                             class="img-fluid"
+                             style="max-height:260px; width:100%; object-fit:contain;">
+                    </div>
+                    <div class="card-footer text-center small-muted">
+                        Smoking History Distribution
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if age_plot %}
+            <div class="col-md-6 mb-4">
+                <div class="card chart-card h-100">
+                    <div class="card-body text-center">
+                        <img src="data:image/png;base64,{{ age_plot }}"
+                             class="img-fluid"
+                             style="max-height:260px; width:100%; object-fit:contain;">
+                    </div>
+                    <div class="card-footer text-center small-muted">
+                        Age Distribution
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Heatmap full width -->
+        <div class="row">
+            {% if corr_heatmap_plot %}
+            <div class="col-12 mb-4">
+                <div class="card chart-card">
+                    <div class="card-body text-center">
+                        <img src="data:image/png;base64,{{ corr_heatmap_plot }}"
+                             class="img-fluid"
+                             style="max-height:360px; width:100%; object-fit:contain;">
+                    </div>
+                    <div class="card-footer text-center small-muted">
+                        Correlation Heatmap
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- INFO ALGORITMA -->
+        <div class="accordion mt-4">
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#infoLR">
+                        📘 Apa itu Logistic Regression?
+                    </button>
+                </h2>
+                <div id="infoLR" class="accordion-collapse collapse">
+                    <div class="card-body">
+                        <p><strong>Logistic Regression</strong> adalah algoritma klasifikasi yang memodelkan peluang
+                            sebuah kondisi (misalnya diabetes) menggunakan fungsi logit (sigmoid).</p>
+                        <p>Model ini sangat populer karena:</p>
+                        <ul>
+                            <li>Analisis medis → mudah diinterpretasi</li>
+                            <li>Menghasilkan probabilitas</li>
+                            <li>Cocok untuk <strong>binary classification</strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Script -->
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+    const datasetSelect = document.getElementById("datasetSelect");
+
+    datasetSelect.addEventListener("change", async function() {
+        const rowId = this.value;
+        const preview = document.getElementById("previewContainer");
+        const previewRow = document.getElementById("previewRow");
+
+        if (!rowId) {
+            preview.style.display = "none";
+            previewRow.innerHTML = "";
+            return;
+        }
+
+        const res = await fetch(`/get_dataset/${rowId}`);
+        const data = await res.json();
+
+        if (data.error) {
+            preview.style.display = "none";
+            previewRow.innerHTML = "";
+            alert(data.error);
+            return;
+        }
+
+        // Isi form dengan data asli dari dataset
+        document.getElementById("gender").value = data.gender ?? "";
+        document.getElementById("age").value = data.age ?? "";
+        document.getElementById("hypertension").value = data.hypertension ?? "";
+        document.getElementById("heart_disease").value = data.heart_disease ?? "";
+        document.getElementById("smoking_history").value = data.smoking_history ?? "";
+        document.getElementById("bmi").value = data.bmi ?? "";
+        document.getElementById("HbA1c_level").value = data.HbA1c_level ?? "";
+        document.getElementById("blood_glucose_level").value = data.blood_glucose_level ?? "";
+
+        // Label asli dari dataset
+        const labelAsli = (data.diabetes === 1) ? "Positif Diabetes" : "Negatif Diabetes";
+
+        // Hasil deteksi model
+        const predLabel = data.prediction_label || "-";
+        const probText = (typeof data.prediction_probability === "number")
+            ? data.prediction_probability.toFixed(2) + "%"
+            : "-";
+
+        preview.style.display = "block";
+        previewRow.innerHTML = `
+            <td>${data.gender}</td>
+            <td>${data.age}</td>
+            <td>${data.hypertension}</td>
+            <td>${data.heart_disease}</td>
+            <td>${data.smoking_history}</td>
+            <td>${data.bmi}</td>
+            <td>${data.HbA1c_level}</td>
+            <td>${data.blood_glucose_level}</td>
+            <td>${labelAsli}</td>
+            <td>${predLabel} (${probText})</td>`;
+    });
+
+    const toggleBtn = document.getElementById("darkModeToggle");
+    toggleBtn.addEventListener("click", () => {
+        document.body.classList.toggle("dark-mode");
+        toggleBtn.textContent = document.body.classList.contains("dark-mode")
+            ? "☀️ Mode Terang" : "🌙 Mode Gelap";
+    });
+
+    {% if gauge_json %}
+    const gaugeFig = {{ gauge_json | safe }};
+    Plotly.newPlot('gauge', gaugeFig.data, gaugeFig.layout);
+    {% endif %}
+
+    {% if pie_json %}
+    const pieFig = {{ pie_json | safe }};
+    Plotly.newPlot('pie', pieFig.data, pieFig.layout);
+    {% endif %}
+});
+</script>
+
+</body>
+</html>
